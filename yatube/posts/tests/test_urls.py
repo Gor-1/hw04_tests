@@ -22,7 +22,7 @@ class PostsURLTests(TestCase):
             slug='tmpslug',
             description='Тестовое опысание'
         )
-        Post.objects.create(
+        cls.post = Post.objects.create(
             author=cls.user,
             text='Пост для тестов',
             group=cls.group
@@ -85,7 +85,9 @@ class PostsURLTests(TestCase):
             '/posts/1/edit/',
             follow=True
         )
-        self.assertRedirects(response, '/auth/login/?next=/posts/1/edit/')
+        self.assertRedirects(
+            response, f'/auth/login/?next=/posts/{self.post.id}/edit/'
+        )
 
         # Проверяем что другой зареганий пользовател не может
         # редактировать чужой пост
