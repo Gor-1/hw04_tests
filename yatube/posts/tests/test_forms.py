@@ -52,7 +52,7 @@ def post_form_create_and_edit_test(self, edit):
         'text': text
     }
 
-    if (edit is True):
+    if edit:
         # отправляем запрос
         response = self.authorized_author.post(
             reverse('posts:post_edit', kwargs={'post_id': self.post.id}),
