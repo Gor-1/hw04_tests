@@ -88,9 +88,7 @@ def post_create(request):
 @login_required
 def post_edit(request, post_id):
     edited_post = get_object_or_404(Post, id=post_id)
-    print('Пост в views найден!!!!!!!')
     if request.user == edited_post.author:
-        print('user тот же!!!!!!!!!!!')
         if request.method == 'POST':
             form = PostForm(request.POST or None, instance=edited_post)
             context = {
@@ -98,7 +96,6 @@ def post_edit(request, post_id):
                 'is_edit': True,
             }
             if form.is_valid():
-                print('проверка валидности пройдена !!!!!!!!')
                 form.save()
                 return redirect(
                     reverse_lazy(
