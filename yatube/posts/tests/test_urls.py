@@ -79,7 +79,15 @@ class PostsURLTests(TestCase):
         response = self.guest_client.get('/create/')
         self.assertEqual(response.status_code, 302)
 
-        # Проверяе что другой зареганий пользовател не может
+        # проверяем Redirect неавторизованного пользователья
+        # при попитке отредактировать пост на страницу входа
+        response = self.guest_client.get(
+            '/posts/1/edit/',
+            follow=True
+        )
+        self.assertRedirects(response, '/auth/login/?next=/posts/1/edit/')
+
+        # Проверяем что другой зареганий пользовател не может
         # редактировать чужой пост
         response = self.authorized_not_author.get(
             '/posts/1/edit/',

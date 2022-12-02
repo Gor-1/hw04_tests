@@ -44,7 +44,7 @@ def post_form_create_and_edit_test(self, edit):
     # подсчитаем кол_во постов
     post_count = Post.objects.count()
     text = 'New Тестовый текст'
-    if (edit is True):
+    if edit:
         text = 'Измененный текст'
 
     form_data = {
