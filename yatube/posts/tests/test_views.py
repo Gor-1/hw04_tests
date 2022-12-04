@@ -1,34 +1,79 @@
 # posts/tests/test_views.py
+import shutil
+import tempfile
+from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
+
 from http import HTTPStatus
 from ..constants import PUB_VALUE
 from django import forms
 from django.contrib.auth import get_user_model
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from posts.models import Post, Group
+from posts.models import Post, Group, Comment
+
+# Создаем временную папку для медиа-файлов;
+# на момент теста медиа папка будет переопределена
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
 User = get_user_model()
 TEMP_NUMB_TEST_ONE = 13
 TEMP_NUMB_TEST_TWO = 3
 
 
+# Для сохранения media-файлов в тестах будет использоваться
+# временная папка TEMP_MEDIA_ROOT, а потом мы ее удалим
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostsPagesTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         # Создадим запись в БД для проверки доступности адресов
         cls.author = User.objects.create_user(username='tmp_User')
+
+        # Для тестирования загрузки изображений
+        # берём байт-последовательность картинки,
+        # состоящей из двух пикселей: белого и чёрного
+        small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x02\x00'
+            b'\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+            b'\x0A\x00\x3B'
+        )
+
+        uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=small_gif,
+            content_type='image/gif'
+        )
         cls.group = Group.objects.create(
             title='tmp_title',
             slug='tmp_slug',
             description='tmp_description'
         )
+
         cls.post = Post.objects.create(
             author=cls.author,
             text='tmp_post_text',
-            group=cls.group
+            group=cls.group,
+            image=uploaded
         )
+        cls.comment = Comment.objects.create(
+            post=cls.post,
+            author=cls.author,
+            text='This 343 is comment for tmp_post_text5467'
+        )
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        # Модуль shutil - библиотека Python с удобными инструментами
+        # для управления файлами и директориями
+        # Метод shutil.rmtree удаляет директорию и всё её содержимое
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
         # Создаём экземпляр клиента. Он авторизован.
@@ -72,6 +117,7 @@ class PostsPagesTests(TestCase):
         form_fields = {
             'text': forms.fields.CharField,
             'group': forms.fields.ChoiceField,
+            'image': forms.fields.ImageField
         }
         for value, expected in form_fields.items():
             with self.subTest(value=value):
@@ -90,15 +136,40 @@ class PostsPagesTests(TestCase):
         self.assert_post_response(response)
 
     def test_post_list_page_show_correct_context(self):
-        """Шаблон post_list сформирован с правильным контекстом."""
-        response = self.authorized_author.get(reverse('posts:index'))
-        first_object = response.context['page_obj'][0]
-        post_text_0 = first_object.id
-        post_author_0 = first_object.author
-        post_group_0 = first_object.group
-        self.assertEqual(post_text_0, self.post.pk)
-        self.assertEqual(post_author_0, self.author)
-        self.assertEqual(post_group_0, self.group)
+        """
+        Шаблоны index, post_list, profile
+        сформированы с правильным контекстом.
+        """
+        templates_pages_names = {
+            reverse('posts:index'),
+            reverse('posts:profile', kwargs={'username': self.author}),
+            reverse('posts:group_list', kwargs={'slug': self.group.slug})
+        }
+        for reverse_name in templates_pages_names:
+            with self.subTest(reverse_name=reverse_name):
+                response = self.authorized_author.get(reverse_name)
+                first_object = response.context['page_obj'][0]
+                self.assertEqual(first_object.text, self.post.text)
+                self.assertEqual(first_object.author, self.author)
+                self.assertEqual(first_object.group, self.group)
+                self.assertTrue(first_object.image)
+
+    def test_context_post_detail(self):
+        """
+        Шаблон  post_detail сформирован с правильным контекстом.
+        """
+        response = self.authorized_author.get(
+            reverse('posts:post_detail', kwargs={'post_id': self.post.pk})
+        )
+        post_id_detail = response.context['post']
+        self.assertEqual(post_id_detail.text, self.post.text)
+        self.assertEqual(post_id_detail.author, self.author)
+        self.assertEqual(post_id_detail.group, self.group)
+        self.assertTrue(post_id_detail.image)
+        # проверяем коментарий
+        self.assertContains(
+            response, 'This 343 is comment for tmp_post_text5467'
+        )
 
 
 class PaginatorViewsTest(TestCase):

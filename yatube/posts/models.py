@@ -50,8 +50,45 @@ class Post(models.Model):
         help_text='Группа, к которой будет относиться пост'
     )
 
+    image = models.ImageField(
+        'Картинка',
+        upload_to='posts/',
+        blank='True'
+
+    )
+
+    class Meta:
+        ordering = ('-pub_date',)
+        verbose_name = 'Пост'
+        verbose_name_plural = 'Посты'
+
     def __str__(self) -> str:
         return self.text[:15]
 
+
+class Comment(models.Model):
+    post = models.ForeignKey(
+        Post,
+        related_name='comments',
+        verbose_name='Комментарии поста',
+        on_delete=models.CASCADE
+    )
+
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        verbose_name='Автор комментарий'
+    )
+
+    text = models.TextField(verbose_name='Комментарий')
+    created = models.DateField(
+        auto_now_add=True,
+        verbose_name='Дата Публикации'
+    )
+
     class Meta:
-        ordering = ['-pub_date']
+        ordering = ('created',)
+
+    def __str__(self):
+        return 'Автор : {}, пост: {}'.format(self.name, self.post)

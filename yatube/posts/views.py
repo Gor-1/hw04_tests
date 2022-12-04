@@ -2,9 +2,9 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render, get_object_or_404
 from django.core.paginator import Paginator
-from .forms import PostForm
+from .forms import PostForm, CommentForm
 from django.urls import reverse_lazy
-from .models import Post, Group, User
+from .models import Post, Group, User, Comment
 from .constants import PUB_VALUE
 
 
@@ -63,16 +63,23 @@ def profile(request, username):
 def post_detail(request, post_id):
     # Здесь код запроса к модели и создание словаря контекста
     post = get_object_or_404(Post, id=post_id)
+    form_comment = CommentForm()
+    comments = Comment.objects.filter(post_id=post_id)
     context = {
         'post': post,
         'count_posts': post.author.posts.count(),
+        'comments': comments,
+        'form': form_comment,
     }
     return render(request, 'posts/post_detail.html', context)
 
 
 @login_required
 def post_create(request):
-    form = PostForm(request.POST or None)
+    form = PostForm(
+        request.POST or None,
+        files=request.FILES or None,
+    )
     if request.method == "POST":
         if form.is_valid():
             new_form = form.save(commit=False)
@@ -90,7 +97,11 @@ def post_edit(request, post_id):
     edited_post = get_object_or_404(Post, id=post_id)
     if request.user == edited_post.author:
         if request.method == 'POST':
-            form = PostForm(request.POST or None, instance=edited_post)
+            form = PostForm(
+                request.POST or None,
+                files=request.FILES or None,
+                instance=edited_post
+            )
             context = {
                 'form': form,
                 'is_edit': True,
@@ -116,3 +127,15 @@ def post_edit(request, post_id):
             kwargs={'post_id': post_id}
         )
     )
+
+
+@login_required
+def add_comment(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    form = CommentForm(request.POST or None)
+    if form.is_valid():
+        comment = form.save(commit=False)
+        comment.author = request.user
+        comment.post = post
+        comment.save()
+    return redirect('posts:post_detail', post_id=post_id)
