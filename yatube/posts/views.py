@@ -7,6 +7,9 @@ from django.urls import reverse_lazy
 from .models import Post, Group, User, Comment
 from .constants import PUB_VALUE
 
+# cache для разработкы
+# from django.views.decorators.cache import cache_page
+
 
 def page_list(request, post_list):
     # Показывать по 10 записей на странице.
@@ -19,6 +22,7 @@ def page_list(request, post_list):
     return paginator.get_page(page_number)
 
 
+# @cache_page(timeout=20, key_prefix='index_page')
 def index(request):
     # в переменную posts будет сохранена выборка из 10 объектов модели Post,
     # отсортированных по полю pub_date по убыванию

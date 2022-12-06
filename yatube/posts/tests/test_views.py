@@ -171,6 +171,12 @@ class PostsPagesTests(TestCase):
             response, 'This 343 is comment for tmp_post_text5467'
         )
 
+    def test_costum_error_404_page(self):
+        """ Проверяем что используется кастомная страница для ошибки 404. """
+        response = self.client.get('/nonexist-page/')
+        self.assertEqual(response.status_code, 404)
+        self.assertTemplateUsed(response, 'core/404.html')
+
 
 class PaginatorViewsTest(TestCase):
     @classmethod
